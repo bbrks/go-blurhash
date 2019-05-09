@@ -27,6 +27,7 @@ func Components(hash string) (x, y int, err error) {
 	return x, y, nil
 }
 
+// Decode returns an image of the given hash with the given size.
 func Decode(hash string, width, height int, punch int) (img image.Image, err error) {
 	numX, numY, err := Components(hash)
 	if err != nil {

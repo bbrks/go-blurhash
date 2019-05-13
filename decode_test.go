@@ -32,7 +32,7 @@ func TestDecode(t *testing.T) {
 func TestComponents(t *testing.T) {
 	for _, test := range testFixtures {
 		// skip tests without expected component values
-		if test.xComp == 0 || test.yComp == 0 {
+		if test.hash == "" || test.xComp == 0 || test.yComp == 0 {
 			continue
 		}
 
@@ -43,6 +43,36 @@ func TestComponents(t *testing.T) {
 			is.NoErr(err)           // unexpected error getting components
 			is.Equal(x, test.xComp) // blurhash component mismatch
 			is.Equal(y, test.yComp) // blurhash component mismatch
+		})
+	}
+}
+
+func BenchmarkComponents(b *testing.B) {
+	for _, test := range testFixtures {
+		// skip tests without hashes
+		if test.hash == "" {
+			continue
+		}
+
+		b.Run(test.hash, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_, _, _ = blurhash.Components(test.hash)
+			}
+		})
+	}
+}
+
+func BenchmarkDecode(b *testing.B) {
+	for _, test := range testFixtures {
+		// skip tests without hashes
+		if test.hash == "" {
+			continue
+		}
+
+		b.Run(test.hash, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_, _ = blurhash.Decode(test.hash, 32, 32, 1)
+			}
 		})
 	}
 }

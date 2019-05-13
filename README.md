@@ -2,9 +2,11 @@
 
 A pure Go implementation of Blurhash. The API is stable, however the hashing function in either direction may not be.
 
+![Blurhash Demo](https://i.imgur.com/9qxOXJW.png)
+
 Blurhash is an algorithm written by [Dag Ågren](https://github.com/DagAgren) that encodes an image into a short (~20-30 byte) ASCII string. When you decode the string back into an image, you get a gradient of colors that represent the original image. This can be useful for scenarios where you want an image placeholder before loading, or even to censor the contents of an image [a la Mastodon](https://blog.joinmastodon.org/2019/05/improving-support-for-adult-content-on-mastodon/).
 
-Under the covers, this library is almost a straight port of the [C version](https://github.com/Gargron/blurhash).
+Under the covers, this library is almost a straight port of the [C version](https://github.com/Gargron/blurhash), which is known to encode images differently than the TypeScript implementation.
 
 ## Contributing
 

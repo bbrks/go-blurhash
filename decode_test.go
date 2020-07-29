@@ -1,6 +1,7 @@
 package blurhash_test
 
 import (
+	"image"
 	"image/png"
 	"io/ioutil"
 	"testing"
@@ -9,6 +10,27 @@ import (
 
 	"github.com/bbrks/go-blurhash"
 )
+
+func TestDecodeRGBA(t *testing.T) {
+	for _, test := range testFixtures {
+		// skip tests without hashes
+		if test.hash == "" {
+			continue
+		}
+
+		t.Run(test.hash, func(t *testing.T) {
+			is := is.New(t)
+
+			img := image.NewRGBA(image.Rect(0, 0, 32, 32))
+
+			err := blurhash.DecodeDraw(img, test.hash, 1)
+			is.NoErr(err)
+
+			err = png.Encode(ioutil.Discard, img)
+			is.NoErr(err)
+		})
+	}
+}
 
 func TestDecode(t *testing.T) {
 	for _, test := range testFixtures {

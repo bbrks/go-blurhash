@@ -3,6 +3,7 @@ package blurhash
 import (
 	"image"
 	"image/color"
+	"image/draw"
 	"math"
 
 	"github.com/bbrks/go-blurhash/base83"
@@ -27,18 +28,25 @@ func Components(hash string) (x, y int, err error) {
 	return x, y, nil
 }
 
-// Decode returns an image of the given hash with the given size.
-func Decode(hash string, width, height int, punch int) (img image.Image, err error) {
-	numX, numY, err := Components(hash)
-	if err != nil {
+// Decode returns an NRGBA image of the given hash with the given size.
+func Decode(hash string, width, height int, punch int) (image.Image, error) {
+	newImg := image.NewNRGBA(image.Rect(0, 0, width, height))
+	if err := DecodeDraw(newImg, hash, float64(punch)); err != nil {
 		return nil, err
 	}
+	return newImg, nil
+}
 
-	fPunch := float64(punch)
+// DecodeDraw decodes the given hash into the given image.
+func DecodeDraw(dst draw.Image, hash string, punch float64) error {
+	numX, numY, err := Components(hash)
+	if err != nil {
+		return err
+	}
 
 	quantisedMaximumValue, err := base83.Decode(string(hash[1]))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	maximumValue := float64(quantisedMaximumValue+1) / 166
 
@@ -48,19 +56,20 @@ func Decode(hash string, width, height int, punch int) (img image.Image, err err
 		if i == 0 {
 			val, err := base83.Decode(hash[2:6])
 			if err != nil {
-				return nil, err
+				return err
 			}
 			colors[i] = decodeDC(val)
 		} else {
 			val, err := base83.Decode(hash[4+i*2 : 6+i*2])
 			if err != nil {
-				return nil, err
+				return err
 			}
-			colors[i] = decodeAC(float64(val), maximumValue*fPunch)
+			colors[i] = decodeAC(float64(val), maximumValue*punch)
 		}
 	}
 
-	newImg := image.NewNRGBA(image.Rect(0, 0, width, height))
+	bounds := dst.Bounds()
+	width, height := bounds.Dx(), bounds.Dy()
 
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
@@ -76,7 +85,7 @@ func Decode(hash string, width, height int, punch int) (img image.Image, err err
 				}
 			}
 
-			newImg.SetNRGBA(x, y, color.NRGBA{
+			dst.Set(x, y, color.NRGBA{
 				R: uint8(linearTosRGB(r)),
 				G: uint8(linearTosRGB(g)),
 				B: uint8(linearTosRGB(b)),
@@ -85,7 +94,7 @@ func Decode(hash string, width, height int, punch int) (img image.Image, err err
 		}
 	}
 
-	return newImg, nil
+	return nil
 }
 
 func decodeDC(val int) (c [3]float64) {

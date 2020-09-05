@@ -98,3 +98,19 @@ func BenchmarkDecode(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkDecodeDraw(b *testing.B) {
+	for _, test := range testFixtures {
+		// skip tests without hashes
+		if test.hash == "" {
+			continue
+		}
+
+		b.Run(test.hash, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				dst := image.NewRGBA(image.Rect(0, 0, 32, 32))
+				_ = blurhash.DecodeDraw(dst, test.hash, 1)
+			}
+		})
+	}
+}

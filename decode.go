@@ -37,6 +37,14 @@ func Decode(hash string, width, height int, punch int) (image.Image, error) {
 	return newImg, nil
 }
 
+type drawImageNRGBA interface {
+	SetNRGBA(x, y int, c color.NRGBA)
+}
+
+type drawImageRGBA interface {
+	SetRGBA(x, y int, c color.RGBA)
+}
+
 // DecodeDraw decodes the given hash into the given image.
 func DecodeDraw(dst draw.Image, hash string, punch float64) error {
 	numX, numY, err := Components(hash)
@@ -85,12 +93,20 @@ func DecodeDraw(dst draw.Image, hash string, punch float64) error {
 				}
 			}
 
-			dst.Set(x, y, color.NRGBA{
-				R: uint8(linearTosRGB(r)),
-				G: uint8(linearTosRGB(g)),
-				B: uint8(linearTosRGB(b)),
-				A: 255,
-			})
+			sR := uint8(linearTosRGB(r))
+			sG := uint8(linearTosRGB(g))
+			sB := uint8(linearTosRGB(b))
+			sA := uint8(255)
+
+			// interface smuggle
+			switch d := dst.(type) {
+			case drawImageNRGBA:
+				d.SetNRGBA(x, y, color.NRGBA{sR, sG, sB, sA})
+			case drawImageRGBA:
+				d.SetRGBA(x, y, color.RGBA{sR, sG, sB, sA})
+			default:
+				d.Set(x, y, color.NRGBA{sR, sG, sB, sA})
+			}
 		}
 	}
 

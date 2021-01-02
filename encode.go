@@ -35,9 +35,9 @@ func Encode(xComponents, yComponents int, img image.Image) (hash string, err err
 	}
 
 	// vector of yComponents*xComponents*(RGB)
-	factors := make([][][3]float64, yComponents, yComponents)
+	factors := make([][][3]float64, yComponents)
 	for y := 0; y < yComponents; y++ {
-		factors[y] = make([][3]float64, xComponents, xComponents)
+		factors[y] = make([][3]float64, xComponents)
 		for x := 0; x < xComponents; x++ {
 			factor := multiplyBasisFunction(x, y, img)
 			factors[y][x][0] = factor[0]

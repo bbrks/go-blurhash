@@ -11,6 +11,10 @@ import (
 
 // Components returns the X and Y components of a blurhash.
 func Components(hash string) (x, y int, err error) {
+	if len(hash) < 6 {
+		return 0, 0, ErrInvalidHash
+	}
+
 	sizeFlag, err := base83.Decode(string(hash[0]))
 	if err != nil {
 		return 0, 0, err

@@ -120,10 +120,10 @@ func multiplyBasisFunction(xComponents, yComponents int, img image.Image) [3]flo
 		normalisation = 1.0
 	}
 
-	for x := 0; x < img.Bounds().Dx(); x++ {
-		for y := 0; y < img.Bounds().Max.Y; y++ {
-			//cR, cG, cB, _ := img.At(x, y).RGBA()
-			c, ok := color.NRGBAModel.Convert(img.At(x, y)).(color.NRGBA)
+	bounds := img.Bounds()
+	for x := 0; x < bounds.Dx(); x++ {
+		for y := 0; y < bounds.Dy(); y++ {
+			c, ok := color.NRGBAModel.Convert(img.At(x+bounds.Min.X, y+bounds.Min.Y)).(color.NRGBA)
 			if !ok {
 				panic("not color.NRGBA")
 			}

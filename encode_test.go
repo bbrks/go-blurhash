@@ -2,6 +2,7 @@ package blurhash_test
 
 import (
 	"image"
+	"image/draw"
 	"os"
 	"path/filepath"
 	"testing"
@@ -36,6 +37,49 @@ func TestEncode(t *testing.T) {
 			is.Equal(hash, test.hash) // blurhash mismatch
 		})
 	}
+}
+
+func TestEncodeSubImage(t *testing.T) {
+	is := is.New(t)
+
+	// Load a test image
+	f, err := os.Open(filepath.FromSlash("fixtures/test.png"))
+	is.NoErr(err)
+	defer f.Close()
+
+	img, _, err := image.Decode(f)
+	is.NoErr(err)
+
+	// Create a sub-image with non-zero Min bounds
+	bounds := img.Bounds()
+	subRect := image.Rect(
+		bounds.Min.X+10, bounds.Min.Y+10,
+		bounds.Max.X-10, bounds.Max.Y-10,
+	)
+
+	type subImager interface {
+		SubImage(r image.Rectangle) image.Image
+	}
+	subImg := img.(subImager).SubImage(subRect)
+
+	// Verify sub-image has non-zero Min (this is the bug trigger)
+	is.True(subImg.Bounds().Min.X != 0 || subImg.Bounds().Min.Y != 0)
+
+	// Encode the sub-image
+	subHash, err := blurhash.Encode(4, 3, subImg)
+	is.NoErr(err)
+	t.Logf("sub-image hash: %s", subHash)
+
+	// Create a copy of the sub-image with (0,0) origin
+	normalImg := image.NewNRGBA(image.Rect(0, 0, subRect.Dx(), subRect.Dy()))
+	draw.Draw(normalImg, normalImg.Bounds(), subImg, subRect.Min, draw.Src)
+
+	// Encode the (0,0)-origin copy
+	normalHash, err := blurhash.Encode(4, 3, normalImg)
+	is.NoErr(err)
+
+	// Both should produce the same hash
+	is.Equal(subHash, normalHash) // sub-image should encode same as equivalent normal image
 }
 
 func BenchmarkEncode(b *testing.B) {

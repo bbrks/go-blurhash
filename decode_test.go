@@ -3,7 +3,7 @@ package blurhash_test
 import (
 	"image"
 	"image/png"
-	"io/ioutil"
+	"io"
 	"testing"
 
 	"github.com/matryer/is"
@@ -27,7 +27,7 @@ func TestDecodeRGBA(t *testing.T) {
 			err := blurhash.DecodeDraw(img, test.hash, 1)
 			is.NoErr(err)
 
-			err = png.Encode(ioutil.Discard, img)
+			err = png.Encode(io.Discard, img)
 			is.NoErr(err)
 		})
 	}
@@ -46,7 +46,7 @@ func TestDecode(t *testing.T) {
 			img, err := blurhash.Decode(test.hash, 32, 32, 1)
 			is.NoErr(err)
 
-			err = png.Encode(ioutil.Discard, img)
+			err = png.Encode(io.Discard, img)
 			is.NoErr(err)
 		})
 	}

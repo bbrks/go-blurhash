@@ -8,6 +8,9 @@ var ErrInvalidComponents = errors.New("blurhash: must have between 1 and 9 compo
 // ErrInvalidHash is returned when the library encounters a hash it can't recognise.
 var ErrInvalidHash = errors.New("blurhash: invalid hash")
 
+// ErrInvalidDimensions is returned when width or height is invalid.
+var ErrInvalidDimensions = errors.New("blurhash: width and height must be positive")
+
 func lengthError(expectedLength, actualLength int) error {
 	// No stdlib support for wrapped errors, so return as-is pre-1.13
 	return ErrInvalidHash

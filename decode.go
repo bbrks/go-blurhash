@@ -34,6 +34,9 @@ func Components(hash string) (x, y int, err error) {
 
 // Decode returns an NRGBA image of the given hash with the given size.
 func Decode(hash string, width, height int, punch int) (image.Image, error) {
+	if width <= 0 || height <= 0 {
+		return nil, ErrInvalidDimensions
+	}
 	newImg := image.NewNRGBA(image.Rect(0, 0, width, height))
 	if err := DecodeDraw(newImg, hash, float64(punch)); err != nil {
 		return nil, err

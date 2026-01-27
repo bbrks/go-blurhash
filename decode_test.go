@@ -102,6 +102,28 @@ func TestComponentsInvalidHash(t *testing.T) {
 	})
 }
 
+func TestDecodeInvalidDimensions(t *testing.T) {
+	tests := []struct {
+		name   string
+		width  int
+		height int
+	}{
+		{"zero width", 0, 32},
+		{"zero height", 32, 0},
+		{"both zero", 0, 0},
+		{"negative width", -1, 32},
+		{"negative height", 32, -1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			is := is.New(t)
+			_, err := blurhash.Decode(testFixtures[0].hash, tt.width, tt.height, 1)
+			is.Equal(err, blurhash.ErrInvalidDimensions) // invalid dimensions should return error
+		})
+	}
+}
+
 func BenchmarkComponents(b *testing.B) {
 	for _, test := range testFixtures {
 		// skip tests without hashes

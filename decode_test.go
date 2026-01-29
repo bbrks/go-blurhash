@@ -102,6 +102,40 @@ func TestComponentsInvalidHash(t *testing.T) {
 	})
 }
 
+func TestDecodeDrawSubImage(t *testing.T) {
+	is := is.New(t)
+
+	// Create a larger image and get a sub-image from it
+	parent := image.NewNRGBA(image.Rect(0, 0, 100, 100))
+	subRect := image.Rect(10, 20, 42, 52) // 32x32 sub-image at offset (10, 20)
+	subImg := parent.SubImage(subRect).(*image.NRGBA)
+
+	// Decode into the sub-image
+	err := blurhash.DecodeDraw(subImg, testFixtures[0].hash, 1)
+	is.NoErr(err)
+
+	// Verify pixels were written to the correct location
+	// The sub-image should have non-zero pixels
+	hasNonZero := false
+	for y := subRect.Min.Y; y < subRect.Max.Y; y++ {
+		for x := subRect.Min.X; x < subRect.Max.X; x++ {
+			c := parent.NRGBAAt(x, y)
+			if c.R != 0 || c.G != 0 || c.B != 0 {
+				hasNonZero = true
+				break
+			}
+		}
+	}
+	is.True(hasNonZero) // sub-image should have non-zero pixels
+
+	// Verify pixels outside the sub-image are still zero
+	// Check a few pixels outside the sub-rect
+	outside := parent.NRGBAAt(0, 0)
+	is.Equal(outside.R, uint8(0)) // pixel outside sub-image should be zero
+	is.Equal(outside.G, uint8(0))
+	is.Equal(outside.B, uint8(0))
+}
+
 func TestDecodeInvalidDimensions(t *testing.T) {
 	tests := []struct {
 		name   string

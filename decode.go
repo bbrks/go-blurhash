@@ -106,6 +106,9 @@ func DecodeDraw(dst draw.Image, hash string, punch float64) error {
 		stride = img.Stride
 	}
 
+	// Account for sub-image offset
+	minX, minY := bounds.Min.X, bounds.Min.Y
+
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			var r, g, b float64
@@ -121,13 +124,13 @@ func DecodeDraw(dst draw.Image, hash string, punch float64) error {
 			}
 
 			if pix != nil {
-				idx := y*stride + x*4
+				idx := (minY+y)*stride + (minX+x)*4
 				pix[idx] = uint8(linearTosRGB(r))
 				pix[idx+1] = uint8(linearTosRGB(g))
 				pix[idx+2] = uint8(linearTosRGB(b))
 				pix[idx+3] = 255
 			} else {
-				dst.Set(x, y, color.NRGBA{
+				dst.Set(minX+x, minY+y, color.NRGBA{
 					uint8(linearTosRGB(r)),
 					uint8(linearTosRGB(g)),
 					uint8(linearTosRGB(b)),

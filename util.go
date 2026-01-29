@@ -11,12 +11,9 @@ func growTo[T any](s []T, size int) []T {
 	return s[:size]
 }
 
-func signPow(val, exp float64) float64 {
-	sign := 1.0
-	if val < 0 {
-		sign = -1
-	}
-	return sign * math.Pow(math.Abs(val), exp)
+// signSqrt returns sign(val) * sqrt(|val|)
+func signSqrt(val float64) float64 {
+	return math.Copysign(math.Sqrt(math.Abs(val)), val)
 }
 
 func sRGBToLinear(val int) float64 {

@@ -183,9 +183,9 @@ func encodeDC(r, g, b float64) int {
 }
 
 func encodeAC(r, g, b, maximumValue float64) int {
-	quantR := math.Max(0, math.Min(18, math.Floor(signPow(r/maximumValue, 0.5)*9+9.5)))
-	quantG := math.Max(0, math.Min(18, math.Floor(signPow(g/maximumValue, 0.5)*9+9.5)))
-	quantB := math.Max(0, math.Min(18, math.Floor(signPow(b/maximumValue, 0.5)*9+9.5)))
+	quantR := math.Max(0, math.Min(18, math.Floor(signSqrt(r/maximumValue)*9+9.5)))
+	quantG := math.Max(0, math.Min(18, math.Floor(signSqrt(g/maximumValue)*9+9.5)))
+	quantB := math.Max(0, math.Min(18, math.Floor(signSqrt(b/maximumValue)*9+9.5)))
 
 	return int(quantR*19*19 + quantG*19 + quantB)
 }

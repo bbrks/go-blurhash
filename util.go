@@ -10,12 +10,9 @@ func signPow(val, exp float64) float64 {
 	return sign * math.Pow(math.Abs(val), exp)
 }
 
+//go:generate go run srgb_lut_generator.go
 func sRGBToLinear(val int) float64 {
-	v := float64(val) / 255
-	if v <= 0.04045 {
-		return v / 12.92
-	}
-	return math.Pow((v+0.055)/1.055, 2.4)
+	return sRGBToLinearLUT[val]
 }
 
 func linearTosRGB(val float64) int {

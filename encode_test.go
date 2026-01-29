@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/matryer/is"
-
 	"github.com/bbrks/go-blurhash"
 )
 
@@ -20,35 +18,47 @@ func TestEncode(t *testing.T) {
 		}
 
 		t.Run(test.hash, func(t *testing.T) {
-			is := is.New(t)
-
 			f, err := os.Open(filepath.FromSlash(test.file))
-			is.NoErr(err) // error opening test fixture file
+			if err != nil {
+				t.Fatalf("error opening test fixture file: %v", err)
+			}
 			defer f.Close()
 
-			is.True(f != nil) // file should not be nil
+			if f == nil {
+				t.Fatal("file should not be nil")
+			}
 
 			img, _, err := image.Decode(f)
-			is.NoErr(err)       // error decoding image from test fixture
-			is.True(img != nil) // image should not be nil
+			if err != nil {
+				t.Fatalf("error decoding image from test fixture: %v", err)
+			}
+			if img == nil {
+				t.Fatal("image should not be nil")
+			}
 
 			hash, err := blurhash.Encode(test.xComp, test.yComp, img)
-			is.NoErr(err)             // error hashing test fixture image
-			is.Equal(hash, test.hash) // blurhash mismatch
+			if err != nil {
+				t.Fatalf("error hashing test fixture image: %v", err)
+			}
+			if hash != test.hash {
+				t.Errorf("blurhash mismatch: got %q, want %q", hash, test.hash)
+			}
 		})
 	}
 }
 
 func TestEncodeSubImage(t *testing.T) {
-	is := is.New(t)
-
 	// Load a test image
 	f, err := os.Open(filepath.FromSlash("fixtures/test.png"))
-	is.NoErr(err)
+	if err != nil {
+		t.Fatalf("error opening file: %v", err)
+	}
 	defer f.Close()
 
 	img, _, err := image.Decode(f)
-	is.NoErr(err)
+	if err != nil {
+		t.Fatalf("error decoding image: %v", err)
+	}
 
 	// Create a sub-image with non-zero Min bounds
 	bounds := img.Bounds()
@@ -63,11 +73,15 @@ func TestEncodeSubImage(t *testing.T) {
 	subImg := img.(subImager).SubImage(subRect)
 
 	// Verify sub-image has non-zero Min (this is the bug trigger)
-	is.True(subImg.Bounds().Min.X != 0 || subImg.Bounds().Min.Y != 0)
+	if subImg.Bounds().Min.X == 0 && subImg.Bounds().Min.Y == 0 {
+		t.Fatal("sub-image should have non-zero Min bounds")
+	}
 
 	// Encode the sub-image
 	subHash, err := blurhash.Encode(4, 3, subImg)
-	is.NoErr(err)
+	if err != nil {
+		t.Fatalf("error encoding sub-image: %v", err)
+	}
 	t.Logf("sub-image hash: %s", subHash)
 
 	// Create a copy of the sub-image with (0,0) origin
@@ -76,10 +90,14 @@ func TestEncodeSubImage(t *testing.T) {
 
 	// Encode the (0,0)-origin copy
 	normalHash, err := blurhash.Encode(4, 3, normalImg)
-	is.NoErr(err)
+	if err != nil {
+		t.Fatalf("error encoding normal image: %v", err)
+	}
 
 	// Both should produce the same hash
-	is.Equal(subHash, normalHash) // sub-image should encode same as equivalent normal image
+	if subHash != normalHash {
+		t.Errorf("sub-image should encode same as equivalent normal image: got %q, want %q", subHash, normalHash)
+	}
 }
 
 func BenchmarkEncode(b *testing.B) {
@@ -90,17 +108,23 @@ func BenchmarkEncode(b *testing.B) {
 		}
 
 		b.Run(test.hash, func(b *testing.B) {
-			is := is.New(b)
-
 			f, err := os.Open(filepath.FromSlash(test.file))
-			is.NoErr(err) // error opening test fixture file
+			if err != nil {
+				b.Fatalf("error opening test fixture file: %v", err)
+			}
 			defer f.Close()
 
-			is.True(f != nil) // file should not be nil
+			if f == nil {
+				b.Fatal("file should not be nil")
+			}
 
 			img, _, err := image.Decode(f)
-			is.NoErr(err)       // error decoding image from test fixture
-			is.True(img != nil) // image should not be nil
+			if err != nil {
+				b.Fatalf("error decoding image from test fixture: %v", err)
+			}
+			if img == nil {
+				b.Fatal("image should not be nil")
+			}
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {

@@ -6,8 +6,6 @@ import (
 	"io"
 	"testing"
 
-	"github.com/matryer/is"
-
 	"github.com/bbrks/go-blurhash"
 	"github.com/bbrks/go-blurhash/base83"
 )
@@ -20,15 +18,17 @@ func TestDecodeRGBA(t *testing.T) {
 		}
 
 		t.Run(test.hash, func(t *testing.T) {
-			is := is.New(t)
-
 			img := image.NewRGBA(image.Rect(0, 0, 32, 32))
 
 			err := blurhash.DecodeDraw(img, test.hash, 1)
-			is.NoErr(err)
+			if err != nil {
+				t.Fatalf("error decoding: %v", err)
+			}
 
 			err = png.Encode(io.Discard, img)
-			is.NoErr(err)
+			if err != nil {
+				t.Fatalf("error encoding png: %v", err)
+			}
 		})
 	}
 }
@@ -41,13 +41,15 @@ func TestDecode(t *testing.T) {
 		}
 
 		t.Run(test.hash, func(t *testing.T) {
-			is := is.New(t)
-
 			img, err := blurhash.Decode(test.hash, 32, 32, 1)
-			is.NoErr(err)
+			if err != nil {
+				t.Fatalf("error decoding: %v", err)
+			}
 
 			err = png.Encode(io.Discard, img)
-			is.NoErr(err)
+			if err != nil {
+				t.Fatalf("error encoding png: %v", err)
+			}
 		})
 	}
 }
@@ -60,12 +62,16 @@ func TestComponents(t *testing.T) {
 		}
 
 		t.Run(test.hash, func(t *testing.T) {
-			is := is.NewRelaxed(t)
-
 			x, y, err := blurhash.Components(test.hash)
-			is.NoErr(err)           // unexpected error getting components
-			is.Equal(x, test.xComp) // blurhash component mismatch
-			is.Equal(y, test.yComp) // blurhash component mismatch
+			if err != nil {
+				t.Fatalf("unexpected error getting components: %v", err)
+			}
+			if x != test.xComp {
+				t.Errorf("x component mismatch: got %d, want %d", x, test.xComp)
+			}
+			if y != test.yComp {
+				t.Errorf("y component mismatch: got %d, want %d", y, test.yComp)
+			}
 		})
 	}
 }
@@ -75,36 +81,41 @@ func TestComponentsInvalidHash(t *testing.T) {
 		// Hashes shorter than 6 characters should return ErrInvalidHash
 		shortHashes := []string{"", "A", "ABCDE"}
 		for _, hash := range shortHashes {
-			is := is.New(t)
 			_, _, err := blurhash.Components(hash)
-			is.Equal(err, blurhash.ErrInvalidHash) // short hash should return ErrInvalidHash
+			if err != blurhash.ErrInvalidHash {
+				t.Errorf("short hash %q should return ErrInvalidHash, got %v", hash, err)
+			}
 		}
 	})
 
 	t.Run("invalid base83 character", func(t *testing.T) {
-		is := is.New(t)
 		// '&' is not a valid base83 character
 		_, _, err := blurhash.Components("&BCDEF")
-		is.True(err != nil)                   // invalid character should return error
-		is.Equal(err, base83.ErrInvalidInput) // expected invalid base83 error
+		if err == nil {
+			t.Fatal("invalid character should return error")
+		}
+		if err != base83.ErrInvalidInput {
+			t.Errorf("expected invalid base83 error, got %v", err)
+		}
 	})
 
 	t.Run("wrong length for components", func(t *testing.T) {
-		is := is.New(t)
 		// '9' encodes 1x2 components (sizeFlag=9), expecting 4+2*1*2=8 chars
 		// but we provide only 6 chars
 		_, _, err := blurhash.Components("900000")
-		is.Equal(err, blurhash.ErrInvalidHash) // wrong length should return ErrInvalidHash
+		if err != blurhash.ErrInvalidHash {
+			t.Errorf("wrong length should return ErrInvalidHash, got %v", err)
+		}
 
 		// Valid 1x1 hash is 6 chars, but provide 8
 		_, _, err = blurhash.Components("00000000")
-		is.Equal(err, blurhash.ErrInvalidHash) // wrong length should return ErrInvalidHash
+		if err != blurhash.ErrInvalidHash {
+			t.Errorf("wrong length should return ErrInvalidHash, got %v", err)
+		}
 	})
 }
 
 func TestDecodeDrawSubImage(t *testing.T) {
-	is := is.New(t)
-
 	// Create a larger image and get a sub-image from it
 	parent := image.NewNRGBA(image.Rect(0, 0, 100, 100))
 	subRect := image.Rect(10, 20, 42, 52) // 32x32 sub-image at offset (10, 20)
@@ -112,7 +123,9 @@ func TestDecodeDrawSubImage(t *testing.T) {
 
 	// Decode into the sub-image
 	err := blurhash.DecodeDraw(subImg, testFixtures[0].hash, 1)
-	is.NoErr(err)
+	if err != nil {
+		t.Fatalf("error decoding: %v", err)
+	}
 
 	// Verify pixels were written to the correct location
 	// The sub-image should have non-zero pixels
@@ -126,14 +139,22 @@ func TestDecodeDrawSubImage(t *testing.T) {
 			}
 		}
 	}
-	is.True(hasNonZero) // sub-image should have non-zero pixels
+	if !hasNonZero {
+		t.Error("sub-image should have non-zero pixels")
+	}
 
 	// Verify pixels outside the sub-image are still zero
 	// Check a few pixels outside the sub-rect
 	outside := parent.NRGBAAt(0, 0)
-	is.Equal(outside.R, uint8(0)) // pixel outside sub-image should be zero
-	is.Equal(outside.G, uint8(0))
-	is.Equal(outside.B, uint8(0))
+	if outside.R != 0 {
+		t.Errorf("pixel outside sub-image R should be zero, got %d", outside.R)
+	}
+	if outside.G != 0 {
+		t.Errorf("pixel outside sub-image G should be zero, got %d", outside.G)
+	}
+	if outside.B != 0 {
+		t.Errorf("pixel outside sub-image B should be zero, got %d", outside.B)
+	}
 }
 
 func TestDecodeInvalidDimensions(t *testing.T) {
@@ -151,9 +172,10 @@ func TestDecodeInvalidDimensions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			is := is.New(t)
 			_, err := blurhash.Decode(testFixtures[0].hash, tt.width, tt.height, 1)
-			is.Equal(err, blurhash.ErrInvalidDimensions) // invalid dimensions should return error
+			if err != blurhash.ErrInvalidDimensions {
+				t.Errorf("invalid dimensions should return ErrInvalidDimensions, got %v", err)
+			}
 		})
 	}
 }

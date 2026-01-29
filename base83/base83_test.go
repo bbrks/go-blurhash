@@ -4,8 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/matryer/is"
-
 	"github.com/bbrks/go-blurhash/base83"
 )
 
@@ -27,11 +25,13 @@ var tests = []struct {
 func TestDecodeEncode(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.str, func(t *testing.T) {
-			is := is.NewRelaxed(t)
-
 			val, err := base83.Decode(test.str)
-			is.NoErr(err)           // Decode returned unexpected error
-			is.Equal(val, test.val) // Decode got unexpected result
+			if err != nil {
+				t.Fatalf("Decode returned unexpected error: %v", err)
+			}
+			if val != test.val {
+				t.Errorf("Decode got unexpected result: got %d, want %d", val, test.val)
+			}
 		})
 	}
 }
@@ -39,11 +39,13 @@ func TestDecodeEncode(t *testing.T) {
 func TestEncode(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.str, func(t *testing.T) {
-			is := is.NewRelaxed(t)
-
 			str, err := base83.Encode(test.val, len(test.str))
-			is.NoErr(err)           // Encode returned unexpected error
-			is.Equal(str, test.str) // Encode got unexpected result
+			if err != nil {
+				t.Fatalf("Encode returned unexpected error: %v", err)
+			}
+			if str != test.str {
+				t.Errorf("Encode got unexpected result: got %q, want %q", str, test.str)
+			}
 		})
 	}
 }
@@ -59,12 +61,16 @@ func TestDecodeInvalidInput(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.str, func(t *testing.T) {
-			is := is.NewRelaxed(t)
-
 			val, err := base83.Decode(test.str)
-			is.True(err != nil)                                      // Decode should've returned error for invalid input
-			is.True(strings.Contains(err.Error(), test.err.Error())) // Decode returned wrong error
-			is.Equal(val, test.val)                                  // Decode got unexpected result
+			if err == nil {
+				t.Fatal("Decode should've returned error for invalid input")
+			}
+			if !strings.Contains(err.Error(), test.err.Error()) {
+				t.Errorf("Decode returned wrong error: got %v, want %v", err, test.err)
+			}
+			if val != test.val {
+				t.Errorf("Decode got unexpected result: got %d, want %d", val, test.val)
+			}
 		})
 	}
 }
@@ -82,11 +88,13 @@ func TestEncodeInvalidLength(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.str, func(t *testing.T) {
-			is := is.NewRelaxed(t)
-
 			output, err := base83.Encode(test.val, test.length)
-			is.NoErr(err)              // Encode should've returned error for invalid input
-			is.Equal(output, test.str) // Encode got unexpected result
+			if err != nil {
+				t.Fatalf("Encode returned unexpected error: %v", err)
+			}
+			if output != test.str {
+				t.Errorf("Encode got unexpected result: got %q, want %q", output, test.str)
+			}
 		})
 	}
 }

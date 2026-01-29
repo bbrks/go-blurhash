@@ -2,7 +2,7 @@ package blurhash
 
 import (
 	"image"
-	"image/color"
+	"image/draw"
 	"math"
 	"strings"
 
@@ -34,12 +34,40 @@ func Encode(xComponents, yComponents int, img image.Image) (hash string, err err
 		return "", err
 	}
 
+	bounds := img.Bounds()
+	width, height := bounds.Dx(), bounds.Dy()
+
+	// Convert image to NRGBA for efficient direct pixel access (one-time cost)
+	var nrgba *image.NRGBA
+	if n, ok := img.(*image.NRGBA); ok {
+		nrgba = n
+	} else {
+		nrgba = image.NewNRGBA(bounds)
+		draw.Draw(nrgba, bounds, img, bounds.Min, draw.Src)
+	}
+
+	// Precompute cosine tables to avoid repeated math.Cos calls
+	cosX := make([][]float64, xComponents)
+	for i := 0; i < xComponents; i++ {
+		cosX[i] = make([]float64, width)
+		for x := 0; x < width; x++ {
+			cosX[i][x] = math.Cos(math.Pi * float64(i) * float64(x) / float64(width))
+		}
+	}
+	cosY := make([][]float64, yComponents)
+	for j := 0; j < yComponents; j++ {
+		cosY[j] = make([]float64, height)
+		for y := 0; y < height; y++ {
+			cosY[j][y] = math.Cos(math.Pi * float64(j) * float64(y) / float64(height))
+		}
+	}
+
 	// vector of yComponents*xComponents*(RGB)
 	factors := make([][][3]float64, yComponents)
 	for y := 0; y < yComponents; y++ {
 		factors[y] = make([][3]float64, xComponents)
 		for x := 0; x < xComponents; x++ {
-			factor := multiplyBasisFunction(x, y, img)
+			factor := multiplyBasisFunction(x, y, nrgba, cosX[x], cosY[y])
 			factors[y][x][0] = factor[0]
 			factors[y][x][1] = factor[1]
 			factors[y][x][2] = factor[2]
@@ -111,31 +139,30 @@ func encodeAC(r, g, b, maximumValue float64) int {
 	return int(quantR*19*19 + quantG*19 + quantB)
 }
 
-func multiplyBasisFunction(xComponents, yComponents int, img image.Image) [3]float64 {
+func multiplyBasisFunction(xComp, yComp int, img *image.NRGBA, cosX, cosY []float64) [3]float64 {
 	var r, g, b float64
-	width, height := float64(img.Bounds().Dx()), float64(img.Bounds().Dy())
+	width, height := len(cosX), len(cosY)
 
 	normalisation := 2.0
-	if xComponents == 0 && yComponents == 0 {
+	if xComp == 0 && yComp == 0 {
 		normalisation = 1.0
 	}
 
-	bounds := img.Bounds()
-	for x := 0; x < bounds.Dx(); x++ {
-		for y := 0; y < bounds.Dy(); y++ {
-			c, ok := color.NRGBAModel.Convert(img.At(x+bounds.Min.X, y+bounds.Min.Y)).(color.NRGBA)
-			if !ok {
-				panic("not color.NRGBA")
-			}
-			basis := math.Cos(math.Pi*float64(xComponents)*float64(x)/width) *
-				math.Cos(math.Pi*float64(yComponents)*float64(y)/height)
-			r += basis * sRGBToLinear(int(c.R))
-			g += basis * sRGBToLinear(int(c.G))
-			b += basis * sRGBToLinear(int(c.B))
+	// Direct pixel access - avoids interface calls and allocations
+	pix := img.Pix
+	stride := img.Stride
+
+	for x := 0; x < width; x++ {
+		for y := 0; y < height; y++ {
+			i := y*stride + x*4
+			basis := cosX[x] * cosY[y]
+			r += basis * sRGBToLinear(int(pix[i]))
+			g += basis * sRGBToLinear(int(pix[i+1]))
+			b += basis * sRGBToLinear(int(pix[i+2]))
 		}
 	}
 
-	scale := normalisation / (width * height)
+	scale := normalisation / float64(width*height)
 	return [3]float64{
 		r * scale,
 		g * scale,

@@ -1,6 +1,7 @@
 package blurhash
 
 import (
+	"fmt"
 	"image"
 	"image/draw"
 	"math"
@@ -39,7 +40,7 @@ func NewEncoder() *Encoder {
 func (e *Encoder) Encode(xComponents, yComponents int, img image.Image) (string, error) {
 	if xComponents < minComponents || xComponents > maxComponents ||
 		yComponents < minComponents || yComponents > maxComponents {
-		return "", ErrInvalidComponents
+		return "", fmt.Errorf("%w: had x=%d, y=%d", ErrInvalidComponents, xComponents, yComponents)
 	}
 
 	bounds := img.Bounds()

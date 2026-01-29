@@ -1,6 +1,7 @@
 package blurhash
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -12,7 +13,7 @@ import (
 // Components returns the X and Y components of a blurhash.
 func Components(hash string) (x, y int, err error) {
 	if len(hash) < 6 {
-		return 0, 0, ErrInvalidHash
+		return 0, 0, fmt.Errorf("%w: hash too short", ErrInvalidHash)
 	}
 
 	sizeFlag, err := base83.Decode(string(hash[0]))
@@ -26,7 +27,7 @@ func Components(hash string) (x, y int, err error) {
 	expectedLength := 4 + 2*x*y
 	actualLength := len(hash)
 	if expectedLength != actualLength {
-		return 0, 0, lengthError(expectedLength, actualLength)
+		return 0, 0, fmt.Errorf("%w: length mismatch: expected %d, got %d", ErrInvalidHash, expectedLength, actualLength)
 	}
 
 	return x, y, nil
@@ -54,7 +55,7 @@ func NewDecoder() *Decoder {
 // Internal buffers are reused across calls when possible.
 func (d *Decoder) Decode(hash string, width, height, punch int) (image.Image, error) {
 	if width <= 0 || height <= 0 {
-		return nil, ErrInvalidDimensions
+		return nil, fmt.Errorf("%w: had width=%d, height=%d", ErrInvalidDimensions, width, height)
 	}
 	newImg := image.NewNRGBA(image.Rect(0, 0, width, height))
 	if err := d.DecodeDraw(newImg, hash, float64(punch)); err != nil {

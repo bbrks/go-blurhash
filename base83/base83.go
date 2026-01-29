@@ -1,5 +1,7 @@
 package base83
 
+import "fmt"
+
 const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%*+,-.:;=?@[]^_{|}~"
 
 // lookup table for ASCII->base83 mapping
@@ -27,7 +29,7 @@ func Decode(str string) (val int, err error) {
 	for i := 0; i < len(str); i++ {
 		idx := charLookup[str[i]]
 		if idx == -1 {
-			return 0, invalidError(rune(str[i]), i)
+			return 0, fmt.Errorf("%w: invalid character %q at index %d", ErrInvalidInput, rune(str[i]), i)
 		}
 		val = val*83 + idx
 	}

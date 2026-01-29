@@ -1,6 +1,7 @@
 package blurhash_test
 
 import (
+	"errors"
 	"image"
 	"image/png"
 	"io"
@@ -82,7 +83,7 @@ func TestComponentsInvalidHash(t *testing.T) {
 		shortHashes := []string{"", "A", "ABCDE"}
 		for _, hash := range shortHashes {
 			_, _, err := blurhash.Components(hash)
-			if err != blurhash.ErrInvalidHash {
+			if !errors.Is(err, blurhash.ErrInvalidHash) {
 				t.Errorf("short hash %q should return ErrInvalidHash, got %v", hash, err)
 			}
 		}
@@ -94,7 +95,7 @@ func TestComponentsInvalidHash(t *testing.T) {
 		if err == nil {
 			t.Fatal("invalid character should return error")
 		}
-		if err != base83.ErrInvalidInput {
+		if !errors.Is(err, base83.ErrInvalidInput) {
 			t.Errorf("expected invalid base83 error, got %v", err)
 		}
 	})
@@ -103,13 +104,13 @@ func TestComponentsInvalidHash(t *testing.T) {
 		// '9' encodes 1x2 components (sizeFlag=9), expecting 4+2*1*2=8 chars
 		// but we provide only 6 chars
 		_, _, err := blurhash.Components("900000")
-		if err != blurhash.ErrInvalidHash {
+		if !errors.Is(err, blurhash.ErrInvalidHash) {
 			t.Errorf("wrong length should return ErrInvalidHash, got %v", err)
 		}
 
 		// Valid 1x1 hash is 6 chars, but provide 8
 		_, _, err = blurhash.Components("00000000")
-		if err != blurhash.ErrInvalidHash {
+		if !errors.Is(err, blurhash.ErrInvalidHash) {
 			t.Errorf("wrong length should return ErrInvalidHash, got %v", err)
 		}
 	})
@@ -173,7 +174,7 @@ func TestDecodeInvalidDimensions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := blurhash.Decode(testFixtures[0].hash, tt.width, tt.height, 1)
-			if err != blurhash.ErrInvalidDimensions {
+			if !errors.Is(err, blurhash.ErrInvalidDimensions) {
 				t.Errorf("invalid dimensions should return ErrInvalidDimensions, got %v", err)
 			}
 		})

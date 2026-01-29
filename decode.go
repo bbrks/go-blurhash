@@ -44,14 +44,6 @@ func Decode(hash string, width, height int, punch int) (image.Image, error) {
 	return newImg, nil
 }
 
-type drawImageNRGBA interface {
-	SetNRGBA(x, y int, c color.NRGBA)
-}
-
-type drawImageRGBA interface {
-	SetRGBA(x, y int, c color.RGBA)
-}
-
 // DecodeDraw decodes the given hash into the given image.
 func DecodeDraw(dst draw.Image, hash string, punch float64) error {
 	numX, numY, err := Components(hash)
@@ -86,13 +78,41 @@ func DecodeDraw(dst draw.Image, hash string, punch float64) error {
 	bounds := dst.Bounds()
 	width, height := bounds.Dx(), bounds.Dy()
 
+	// Precompute cosine tables
+	cosX := make([][]float64, numX)
+	for i := 0; i < numX; i++ {
+		cosX[i] = make([]float64, width)
+		for x := 0; x < width; x++ {
+			cosX[i][x] = math.Cos(math.Pi * float64(i) * float64(x) / float64(width))
+		}
+	}
+	cosY := make([][]float64, numY)
+	for j := 0; j < numY; j++ {
+		cosY[j] = make([]float64, height)
+		for y := 0; y < height; y++ {
+			cosY[j][y] = math.Cos(math.Pi * float64(j) * float64(y) / float64(height))
+		}
+	}
+
+	// Get direct pixel access if available (NRGBA and RGBA have same layout)
+	var pix []uint8
+	var stride int
+	switch img := dst.(type) {
+	case *image.NRGBA:
+		pix = img.Pix
+		stride = img.Stride
+	case *image.RGBA:
+		pix = img.Pix
+		stride = img.Stride
+	}
+
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			var r, g, b float64
-
 			for j := 0; j < numY; j++ {
+				basisY := cosY[j][y]
 				for i := 0; i < numX; i++ {
-					basis := math.Cos(math.Pi*float64(x)*float64(i)/float64(width)) * math.Cos(math.Pi*float64(y)*float64(j)/float64(height))
+					basis := cosX[i][x] * basisY
 					compColor := colors[i+j*numX]
 					r += compColor[0] * basis
 					g += compColor[1] * basis
@@ -100,19 +120,19 @@ func DecodeDraw(dst draw.Image, hash string, punch float64) error {
 				}
 			}
 
-			sR := uint8(linearTosRGB(r))
-			sG := uint8(linearTosRGB(g))
-			sB := uint8(linearTosRGB(b))
-			sA := uint8(255)
-
-			// interface smuggle
-			switch d := dst.(type) {
-			case drawImageNRGBA:
-				d.SetNRGBA(x, y, color.NRGBA{sR, sG, sB, sA})
-			case drawImageRGBA:
-				d.SetRGBA(x, y, color.RGBA{sR, sG, sB, sA})
-			default:
-				d.Set(x, y, color.NRGBA{sR, sG, sB, sA})
+			if pix != nil {
+				idx := y*stride + x*4
+				pix[idx] = uint8(linearTosRGB(r))
+				pix[idx+1] = uint8(linearTosRGB(g))
+				pix[idx+2] = uint8(linearTosRGB(b))
+				pix[idx+3] = 255
+			} else {
+				dst.Set(x, y, color.NRGBA{
+					uint8(linearTosRGB(r)),
+					uint8(linearTosRGB(g)),
+					uint8(linearTosRGB(b)),
+					255,
+				})
 			}
 		}
 	}

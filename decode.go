@@ -71,7 +71,7 @@ func DecodeDraw(dst draw.Image, hash string, punch float64) error {
 			if err != nil {
 				return err
 			}
-			colors[i] = decodeAC(float64(val), maximumValue*punch)
+			colors[i] = decodeAC(val, maximumValue*punch)
 		}
 	}
 
@@ -150,12 +150,18 @@ func decodeDC(val int) (c [3]float64) {
 	return c
 }
 
-func decodeAC(val, maximumValue float64) (c [3]float64) {
-	quantR := math.Floor(val / (19 * 19))
-	quantG := math.Mod(math.Floor(val/19), 19)
-	quantB := math.Mod(val, 19)
-	c[0] = signPow((quantR-9)/9, 2.0) * maximumValue
-	c[1] = signPow((quantG-9)/9, 2.0) * maximumValue
-	c[2] = signPow((quantB-9)/9, 2.0) * maximumValue
+func decodeAC(val int, maximumValue float64) (c [3]float64) {
+	quantR := val / 361 // 19*19
+	quantG := (val / 19) % 19
+	quantB := val % 19
+
+	// signPow with exponent 2 is: sign(x) * x^2 = x * |x|
+	rNorm := float64(quantR-9) / 9
+	gNorm := float64(quantG-9) / 9
+	bNorm := float64(quantB-9) / 9
+
+	c[0] = rNorm * math.Abs(rNorm) * maximumValue
+	c[1] = gNorm * math.Abs(gNorm) * maximumValue
+	c[2] = bNorm * math.Abs(bNorm) * maximumValue
 	return c
 }

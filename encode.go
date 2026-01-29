@@ -37,13 +37,21 @@ func Encode(xComponents, yComponents int, img image.Image) (hash string, err err
 	bounds := img.Bounds()
 	width, height := bounds.Dx(), bounds.Dy()
 
-	// Convert image to NRGBA for efficient direct pixel access (one-time cost)
-	var nrgba *image.NRGBA
-	if n, ok := img.(*image.NRGBA); ok {
-		nrgba = n
-	} else {
-		nrgba = image.NewNRGBA(bounds)
+	// Get direct 4-byte per pixel data - fast path [N]RGBA
+	var pix []uint8
+	var stride int
+	switch src := img.(type) {
+	case *image.NRGBA:
+		pix = src.Pix
+		stride = src.Stride
+	case *image.RGBA:
+		pix = src.Pix
+		stride = src.Stride
+	default:
+		nrgba := image.NewNRGBA(bounds)
 		draw.Draw(nrgba, bounds, img, bounds.Min, draw.Src)
+		pix = nrgba.Pix
+		stride = nrgba.Stride
 	}
 
 	// Precompute cosine tables to avoid repeated math.Cos calls
@@ -67,7 +75,7 @@ func Encode(xComponents, yComponents int, img image.Image) (hash string, err err
 	for y := 0; y < yComponents; y++ {
 		factors[y] = make([][3]float64, xComponents)
 		for x := 0; x < xComponents; x++ {
-			factor := multiplyBasisFunction(x, y, nrgba, cosX[x], cosY[y])
+			factor := multiplyBasisFunction(x, y, pix, stride, cosX[x], cosY[y])
 			factors[y][x][0] = factor[0]
 			factors[y][x][1] = factor[1]
 			factors[y][x][2] = factor[2]
@@ -139,7 +147,7 @@ func encodeAC(r, g, b, maximumValue float64) int {
 	return int(quantR*19*19 + quantG*19 + quantB)
 }
 
-func multiplyBasisFunction(xComp, yComp int, img *image.NRGBA, cosX, cosY []float64) [3]float64 {
+func multiplyBasisFunction(xComp, yComp int, pix []uint8, stride int, cosX, cosY []float64) [3]float64 {
 	var r, g, b float64
 	width, height := len(cosX), len(cosY)
 
@@ -147,10 +155,6 @@ func multiplyBasisFunction(xComp, yComp int, img *image.NRGBA, cosX, cosY []floa
 	if xComp == 0 && yComp == 0 {
 		normalisation = 1.0
 	}
-
-	// Direct pixel access - avoids interface calls and allocations
-	pix := img.Pix
-	stride := img.Stride
 
 	for y := 0; y < height; y++ {
 		rowOffset := y * stride

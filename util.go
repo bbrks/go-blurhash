@@ -2,6 +2,15 @@ package blurhash
 
 import "math"
 
+// growTo returns a slice with length size, reusing the existing
+// slice's backing array if it has sufficient capacity.
+func growTo[T any](s []T, size int) []T {
+	if cap(s) < size {
+		return make([]T, size)
+	}
+	return s[:size]
+}
+
 func signPow(val, exp float64) float64 {
 	sign := 1.0
 	if val < 0 {

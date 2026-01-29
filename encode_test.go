@@ -109,3 +109,31 @@ func BenchmarkEncode(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkEncoderReuse(b *testing.B) {
+	for _, test := range testFixtures {
+		// skip tests without files or hashes
+		if test.file == "" || test.hash == "" {
+			continue
+		}
+
+		b.Run(test.hash, func(b *testing.B) {
+			f, err := os.Open(filepath.FromSlash(test.file))
+			if err != nil {
+				b.Fatalf("error opening file: %v", err)
+			}
+			defer f.Close()
+
+			img, _, err := image.Decode(f)
+			if err != nil {
+				b.Fatalf("error decoding image: %v", err)
+			}
+
+			enc := blurhash.NewEncoder()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_, _ = enc.Encode(test.xComp, test.yComp, img)
+			}
+		})
+	}
+}

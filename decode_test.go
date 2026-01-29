@@ -196,9 +196,43 @@ func BenchmarkDecodeDraw(b *testing.B) {
 		}
 
 		b.Run(test.hash, func(b *testing.B) {
+			dst := image.NewRGBA(image.Rect(0, 0, 32, 32))
+			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				dst := image.NewRGBA(image.Rect(0, 0, 32, 32))
 				_ = blurhash.DecodeDraw(dst, test.hash, 1)
+			}
+		})
+	}
+}
+
+func BenchmarkDecoderReuse(b *testing.B) {
+	for _, test := range testFixtures {
+		if test.hash == "" {
+			continue
+		}
+
+		b.Run(test.hash, func(b *testing.B) {
+			dec := blurhash.NewDecoder()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_, _ = dec.Decode(test.hash, 32, 32, 1)
+			}
+		})
+	}
+}
+
+func BenchmarkDecoderDrawReuse(b *testing.B) {
+	for _, test := range testFixtures {
+		if test.hash == "" {
+			continue
+		}
+
+		b.Run(test.hash, func(b *testing.B) {
+			dec := blurhash.NewDecoder()
+			dst := image.NewRGBA(image.Rect(0, 0, 32, 32))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_ = dec.DecodeDraw(dst, test.hash, 1)
 			}
 		})
 	}

@@ -14,28 +14,49 @@ const (
 	maxComponents = 9
 )
 
+// Encoder is a reusable blurhash encoder that minimizes allocations
+// by reusing internal buffers across encode operations.
+//
+// An Encoder is safe for sequential use but not for concurrent use.
+// For concurrent workloads, use a sync.Pool of Encoders.
+//
+// The zero value is ready to use.
+type Encoder struct {
+	cosX, cosY []float64
+	factors    [][3]float64
+	nrgba      *image.NRGBA
+	builder    strings.Builder
+}
+
+// NewEncoder creates a new reusable Encoder.
+// Buffers are allocated lazily on first use and grown as needed.
+func NewEncoder() *Encoder {
+	return &Encoder{}
+}
+
 // Encode returns the blurhash for the given image.
-func Encode(xComponents, yComponents int, img image.Image) (hash string, err error) {
+// Internal buffers are reused across calls when possible.
+func (e *Encoder) Encode(xComponents, yComponents int, img image.Image) (string, error) {
 	if xComponents < minComponents || xComponents > maxComponents ||
 		yComponents < minComponents || yComponents > maxComponents {
 		return "", ErrInvalidComponents
 	}
 
-	b := strings.Builder{}
+	bounds := img.Bounds()
+	width, height := bounds.Dx(), bounds.Dy()
+
+	// Ensure buffers are large enough
+	e.maybeGrowBuffers(width, height, xComponents, yComponents)
+
+	// Reset builder for new encode
+	e.builder.Reset()
 
 	sizeFlag := (xComponents - 1) + (yComponents-1)*9
 	sizeFlagEncoded, err := base83.Encode(sizeFlag, 1)
 	if err != nil {
 		return "", err
 	}
-
-	_, err = b.WriteString(sizeFlagEncoded)
-	if err != nil {
-		return "", err
-	}
-
-	bounds := img.Bounds()
-	width, height := bounds.Dx(), bounds.Dy()
+	e.builder.WriteString(sizeFlagEncoded)
 
 	// Get direct 4-byte per pixel data - fast path [N]RGBA
 	var pix []uint8
@@ -48,51 +69,51 @@ func Encode(xComponents, yComponents int, img image.Image) (hash string, err err
 		pix = src.Pix
 		stride = src.Stride
 	default:
-		nrgba := image.NewNRGBA(bounds)
-		draw.Draw(nrgba, bounds, img, bounds.Min, draw.Src)
-		pix = nrgba.Pix
-		stride = nrgba.Stride
+		// Reuse NRGBA buffer if large enough
+		if e.nrgba == nil || e.nrgba.Bounds().Dx() < width || e.nrgba.Bounds().Dy() < height {
+			e.nrgba = image.NewNRGBA(bounds)
+		} else {
+			e.nrgba.Rect = bounds
+		}
+		draw.Draw(e.nrgba, bounds, img, bounds.Min, draw.Src)
+		pix = e.nrgba.Pix
+		stride = e.nrgba.Stride
 	}
 
-	// Precompute cosine tables to avoid repeated math.Cos calls
-	cosX := make([][]float64, xComponents)
+	// Compute cosine tables into reusable buffers
 	for i := 0; i < xComponents; i++ {
-		cosX[i] = make([]float64, width)
 		for x := 0; x < width; x++ {
-			cosX[i][x] = math.Cos(math.Pi * float64(i) * float64(x) / float64(width))
+			e.cosX[i*width+x] = math.Cos(math.Pi * float64(i) * float64(x) / float64(width))
 		}
 	}
-	cosY := make([][]float64, yComponents)
 	for j := 0; j < yComponents; j++ {
-		cosY[j] = make([]float64, height)
 		for y := 0; y < height; y++ {
-			cosY[j][y] = math.Cos(math.Pi * float64(j) * float64(y) / float64(height))
+			e.cosY[j*height+y] = math.Cos(math.Pi * float64(j) * float64(y) / float64(height))
 		}
 	}
 
-	// vector of yComponents*xComponents*(RGB)
-	factors := make([][][3]float64, yComponents)
-	for y := 0; y < yComponents; y++ {
-		factors[y] = make([][3]float64, xComponents)
-		for x := 0; x < xComponents; x++ {
-			factor := multiplyBasisFunction(x, y, pix, stride, cosX[x], cosY[y])
-			factors[y][x][0] = factor[0]
-			factors[y][x][1] = factor[1]
-			factors[y][x][2] = factor[2]
+	// Compute DCT factors
+	for j := 0; j < yComponents; j++ {
+		for i := 0; i < xComponents; i++ {
+			cosXSlice := e.cosX[i*width : i*width+width]
+			cosYSlice := e.cosY[j*height : j*height+height]
+			factor := multiplyBasisFunction(i, j, pix, stride, cosXSlice, cosYSlice)
+			e.factors[j*xComponents+i] = factor
 		}
 	}
 
 	maximumValue := 0.0
 	if xComponents*yComponents-1 > 0 {
 		actualMaximumValue := 0.0
-		for y := 0; y < yComponents; y++ {
-			for x := 0; x < xComponents; x++ {
-				if y == 0 && x == 0 {
+		for j := 0; j < yComponents; j++ {
+			for i := 0; i < xComponents; i++ {
+				if j == 0 && i == 0 {
 					continue
 				}
-				actualMaximumValue = math.Max(math.Abs(factors[y][x][0]), actualMaximumValue)
-				actualMaximumValue = math.Max(math.Abs(factors[y][x][1]), actualMaximumValue)
-				actualMaximumValue = math.Max(math.Abs(factors[y][x][2]), actualMaximumValue)
+				f := e.factors[j*xComponents+i]
+				actualMaximumValue = math.Max(math.Abs(f[0]), actualMaximumValue)
+				actualMaximumValue = math.Max(math.Abs(f[1]), actualMaximumValue)
+				actualMaximumValue = math.Max(math.Abs(f[2]), actualMaximumValue)
 			}
 		}
 
@@ -102,37 +123,50 @@ func Encode(xComponents, yComponents int, img image.Image) (hash string, err err
 		if err != nil {
 			return "", err
 		}
-		b.WriteString(str)
+		e.builder.WriteString(str)
 	} else {
 		maximumValue = 1
 		str, err := base83.Encode(0, 1)
 		if err != nil {
 			return "", err
 		}
-		b.WriteString(str)
+		e.builder.WriteString(str)
 	}
 
-	dc := factors[0][0]
+	dc := e.factors[0]
 	str, err := base83.Encode(encodeDC(dc[0], dc[1], dc[2]), 4)
 	if err != nil {
 		return "", err
 	}
-	b.WriteString(str)
+	e.builder.WriteString(str)
 
-	for y := 0; y < yComponents; y++ {
-		for x := 0; x < xComponents; x++ {
-			if y == 0 && x == 0 {
+	for j := 0; j < yComponents; j++ {
+		for i := 0; i < xComponents; i++ {
+			if j == 0 && i == 0 {
 				continue
 			}
-			str, err := base83.Encode(encodeAC(factors[y][x][0], factors[y][x][1], factors[y][x][2], maximumValue), 2)
+			f := e.factors[j*xComponents+i]
+			str, err := base83.Encode(encodeAC(f[0], f[1], f[2], maximumValue), 2)
 			if err != nil {
 				return "", err
 			}
-			b.WriteString(str)
+			e.builder.WriteString(str)
 		}
 	}
 
-	return b.String(), nil
+	return e.builder.String(), nil
+}
+
+func (e *Encoder) maybeGrowBuffers(width, height, xComponents, yComponents int) {
+	e.cosX = growTo(e.cosX, xComponents*width)
+	e.cosY = growTo(e.cosY, yComponents*height)
+	e.factors = growTo(e.factors, xComponents*yComponents)
+}
+
+// Encode returns the blurhash for the given image.
+func Encode(xComponents, yComponents int, img image.Image) (string, error) {
+	var e Encoder
+	return e.Encode(xComponents, yComponents, img)
 }
 
 func encodeDC(r, g, b float64) int {

@@ -6,7 +6,11 @@ A pure Go implementation of [Blurhash](https://github.com/woltapp/blurhash). The
 
 Blurhash is an algorithm written by [Dag Ågren](https://github.com/DagAgren) for [Wolt (woltapp/blurhash)](https://github.com/woltapp/blurhash) that encodes an image into a short (~20-30 byte) ASCII string. When you decode the string back into an image, you get a gradient of colors that represent the original image. This can be useful for scenarios where you want an image placeholder before loading, or even to censor the contents of an image [a la Mastodon](https://blog.joinmastodon.org/2019/05/improving-support-for-adult-content-on-mastodon/).
 
-Under the covers, this library is almost a straight port of the [C version](https://github.com/woltapp/blurhash/tree/master/C), which is known to encode images slightly differently than the TypeScript implementation.
+## Notable features
+
+- Pure Go with no dependencies
+- High performance (as of v1.2)
+- Reusable `Encoder`/`Decoder` APIs for zero-allocation batch processing
 
 ## Contributing
 

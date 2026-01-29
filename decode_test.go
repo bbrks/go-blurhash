@@ -114,6 +114,37 @@ func TestComponentsInvalidHash(t *testing.T) {
 			t.Errorf("wrong length should return ErrInvalidHash, got %v", err)
 		}
 	})
+
+	t.Run("invalid component count", func(t *testing.T) {
+		// '}' decodes to base83 value 81, giving y=(81/9)+1=10 which exceeds max of 9
+		// Found by fuzz testing
+		_, _, err := blurhash.Components("}00000000000000000000000")
+		if !errors.Is(err, blurhash.ErrInvalidHash) {
+			t.Errorf("invalid component count should return ErrInvalidHash, got %v", err)
+		}
+	})
+}
+
+func TestDecodeInvalidHash(t *testing.T) {
+	t.Run("oversized DC value", func(t *testing.T) {
+		// This hash has a DC value that would overflow the sRGB lookup table
+		// if the red component isn't properly masked to 8 bits.
+		// Found by fuzz testing - should not panic (decoder masks values defensively).
+		_, err := blurhash.Decode("10X00000", 32, 32, 1)
+		// No panic is the success condition; error is acceptable but not required
+		_ = err
+	})
+
+	t.Run("invalid base83 in hash body", func(t *testing.T) {
+		// First char is valid but hash body contains space (invalid base83)
+		_, err := blurhash.Decode("L0000000000000 0000000000000", 32, 32, 1)
+		if err == nil {
+			t.Error("invalid base83 character should return error")
+		}
+		if !errors.Is(err, base83.ErrInvalidInput) {
+			t.Errorf("expected base83.ErrInvalidInput, got %v", err)
+		}
+	})
 }
 
 func TestDecodeDrawSubImage(t *testing.T) {

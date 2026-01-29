@@ -24,6 +24,10 @@ func Components(hash string) (x, y int, err error) {
 	x = (sizeFlag % 9) + 1
 	y = (sizeFlag / 9) + 1
 
+	if x < minComponents || x > maxComponents || y < minComponents || y > maxComponents {
+		return 0, 0, fmt.Errorf("%w: invalid components x=%d, y=%d", ErrInvalidHash, x, y)
+	}
+
 	expectedLength := 4 + 2*x*y
 	actualLength := len(hash)
 	if expectedLength != actualLength {
@@ -182,7 +186,7 @@ func DecodeDraw(dst draw.Image, hash string, punch float64) error {
 }
 
 func decodeDC(val int) (c [3]float64) {
-	c[0] = sRGBToLinear(val >> 16)
+	c[0] = sRGBToLinear(val >> 16 & 255)
 	c[1] = sRGBToLinear(val >> 8 & 255)
 	c[2] = sRGBToLinear(val & 255)
 	return c

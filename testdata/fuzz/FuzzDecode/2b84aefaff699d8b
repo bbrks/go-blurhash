@@ -1,0 +1,5 @@
+go test fuzz v1
+string("10X00000")
+int(32)
+int(9)
+int(1)

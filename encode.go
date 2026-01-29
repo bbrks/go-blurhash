@@ -152,10 +152,12 @@ func multiplyBasisFunction(xComp, yComp int, img *image.NRGBA, cosX, cosY []floa
 	pix := img.Pix
 	stride := img.Stride
 
-	for x := 0; x < width; x++ {
-		for y := 0; y < height; y++ {
-			i := y*stride + x*4
-			basis := cosX[x] * cosY[y]
+	for y := 0; y < height; y++ {
+		rowOffset := y * stride
+		basisY := cosY[y]
+		for x := 0; x < width; x++ {
+			i := rowOffset + x*4
+			basis := cosX[x] * basisY
 			r += basis * sRGBToLinear(int(pix[i]))
 			g += basis * sRGBToLinear(int(pix[i+1]))
 			b += basis * sRGBToLinear(int(pix[i+2]))

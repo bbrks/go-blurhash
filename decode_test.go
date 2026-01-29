@@ -181,6 +181,74 @@ func TestDecodeInvalidDimensions(t *testing.T) {
 	}
 }
 
+func TestDecoderReuse(t *testing.T) {
+	// Use a single decoder for all hashes to verify buffer reuse
+	dec := blurhash.NewDecoder()
+
+	// Run multiple iterations to catch any buffer corruption issues
+	for iter := 0; iter < 3; iter++ {
+		for _, test := range testFixtures {
+			t.Run(test.hash, func(t *testing.T) {
+				// Decode with reusable decoder
+				got, err := dec.Decode(test.hash, 32, 32, 1)
+				if err != nil {
+					t.Fatalf("decode error: %v", err)
+				}
+
+				// Decode with fresh decoder as reference
+				want, err := blurhash.Decode(test.hash, 32, 32, 1)
+				if err != nil {
+					t.Fatalf("reference decode error: %v", err)
+				}
+
+				gotNRGBA := got.(*image.NRGBA)
+				wantNRGBA := want.(*image.NRGBA)
+
+				for i, p := range gotNRGBA.Pix {
+					if p != wantNRGBA.Pix[i] {
+						t.Errorf("pixel mismatch at index %d: got %d, want %d", i, p, wantNRGBA.Pix[i])
+						break
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestDecoderDrawReuse(t *testing.T) {
+	// Use a single decoder and destination image for all hashes
+	dec := blurhash.NewDecoder()
+	dst := image.NewNRGBA(image.Rect(0, 0, 32, 32))
+
+	// Run multiple iterations to catch any buffer corruption issues
+	for iter := 0; iter < 3; iter++ {
+		for _, test := range testFixtures {
+			t.Run(test.hash, func(t *testing.T) {
+				// Decode with reusable decoder into reusable destination
+				err := dec.DecodeDraw(dst, test.hash, 1)
+				if err != nil {
+					t.Fatalf("decode error: %v", err)
+				}
+
+				// Decode with fresh decoder as reference
+				want, err := blurhash.Decode(test.hash, 32, 32, 1)
+				if err != nil {
+					t.Fatalf("reference decode error: %v", err)
+				}
+
+				wantNRGBA := want.(*image.NRGBA)
+
+				for i, p := range dst.Pix {
+					if p != wantNRGBA.Pix[i] {
+						t.Errorf("pixel mismatch at index %d: got %d, want %d", i, p, wantNRGBA.Pix[i])
+						break
+					}
+				}
+			})
+		}
+	}
+}
+
 func BenchmarkComponents(b *testing.B) {
 	for _, test := range testFixtures {
 		// skip tests without hashes

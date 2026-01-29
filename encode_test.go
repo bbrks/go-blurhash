@@ -100,6 +100,41 @@ func TestEncodeSubImage(t *testing.T) {
 	}
 }
 
+func TestEncoderReuse(t *testing.T) {
+	// Use a single encoder for all images to verify buffer reuse
+	enc := blurhash.NewEncoder()
+
+	// Run multiple iterations to catch any buffer corruption issues
+	for iter := 0; iter < 3; iter++ {
+		for _, test := range testFixtures {
+			if test.file == "" {
+				continue
+			}
+
+			t.Run(test.hash, func(t *testing.T) {
+				f, err := os.Open(filepath.FromSlash(test.file))
+				if err != nil {
+					t.Fatalf("error opening file: %v", err)
+				}
+				defer f.Close()
+
+				img, _, err := image.Decode(f)
+				if err != nil {
+					t.Fatalf("error decoding image: %v", err)
+				}
+
+				hash, err := enc.Encode(test.xComp, test.yComp, img)
+				if err != nil {
+					t.Fatalf("encode error: %v", err)
+				}
+				if hash != test.hash {
+					t.Errorf("hash mismatch: got %q, want %q", hash, test.hash)
+				}
+			})
+		}
+	}
+}
+
 func BenchmarkEncode(b *testing.B) {
 	for _, test := range testFixtures {
 		if test.file == "" {

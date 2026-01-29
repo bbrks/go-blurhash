@@ -145,15 +145,15 @@ func (d *Decoder) DecodeDraw(dst draw.Image, hash string, punch float64) error {
 
 			if pix != nil {
 				idx := (minY+y)*stride + (minX+x)*4
-				pix[idx] = uint8(linearTosRGB(r))
-				pix[idx+1] = uint8(linearTosRGB(g))
-				pix[idx+2] = uint8(linearTosRGB(b))
+				pix[idx] = uint8(linearToSRGB(r))
+				pix[idx+1] = uint8(linearToSRGB(g))
+				pix[idx+2] = uint8(linearToSRGB(b))
 				pix[idx+3] = 255
 			} else {
 				dst.Set(minX+x, minY+y, color.NRGBA{
-					uint8(linearTosRGB(r)),
-					uint8(linearTosRGB(g)),
-					uint8(linearTosRGB(b)),
+					uint8(linearToSRGB(r)),
+					uint8(linearToSRGB(g)),
+					uint8(linearToSRGB(b)),
 					255,
 				})
 			}

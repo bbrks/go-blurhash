@@ -10,7 +10,7 @@ func TestSRGBLinearRoundtrip(t *testing.T) {
 	for srgb := 0; srgb <= 255; srgb++ {
 		t.Run(fmt.Sprintf("sRGB %d", srgb), func(t *testing.T) {
 			linear := sRGBToLinear(srgb)
-			back := linearTosRGB(linear)
+			back := linearToSRGB(linear)
 			if srgb != back {
 				t.Errorf("expecting sRGB value to roundtrip (srgb -> linear -> srgb): got %d, want %d", back, srgb)
 			}

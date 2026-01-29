@@ -1,3 +1,11 @@
+// Package blurhash provides encoding and decoding of Blurhash image placeholders.
+//
+// Blurhash is an algorithm that encodes an image into a short ASCII string
+// representing a gradient of colors. When decoded, this string produces a
+// blurred placeholder that approximates the original image's colors and structure.
+//
+// For simple one-off operations, use the package-level [Encode] and [Decode] functions.
+// For batch processing with reduced allocations, use the reusable [Encoder] and [Decoder] types.
 package blurhash
 
 import (
@@ -171,7 +179,7 @@ func Encode(xComponents, yComponents int, img image.Image) (string, error) {
 }
 
 func encodeDC(r, g, b float64) int {
-	return (linearTosRGB(r) << 16) + (linearTosRGB(g) << 8) + linearTosRGB(b)
+	return (linearToSRGB(r) << 16) + (linearToSRGB(g) << 8) + linearToSRGB(b)
 }
 
 func encodeAC(r, g, b, maximumValue float64) int {

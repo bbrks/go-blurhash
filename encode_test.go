@@ -22,7 +22,7 @@ func TestEncode(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error opening test fixture file: %v", err)
 			}
-			defer f.Close()
+			defer f.Close() //nolint:errcheck
 
 			if f == nil {
 				t.Fatal("file should not be nil")
@@ -53,7 +53,7 @@ func TestEncodeSubImage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error opening file: %v", err)
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 
 	img, _, err := image.Decode(f)
 	if err != nil {
@@ -116,7 +116,7 @@ func TestEncoderReuse(t *testing.T) {
 				if err != nil {
 					t.Fatalf("error opening file: %v", err)
 				}
-				defer f.Close()
+				defer f.Close() //nolint:errcheck
 
 				img, _, err := image.Decode(f)
 				if err != nil {
@@ -147,7 +147,7 @@ func BenchmarkEncode(b *testing.B) {
 			if err != nil {
 				b.Fatalf("error opening test fixture file: %v", err)
 			}
-			defer f.Close()
+			defer f.Close() //nolint:errcheck
 
 			if f == nil {
 				b.Fatal("file should not be nil")
@@ -181,7 +181,7 @@ func BenchmarkEncoderReuse(b *testing.B) {
 			if err != nil {
 				b.Fatalf("error opening file: %v", err)
 			}
-			defer f.Close()
+			defer f.Close() //nolint:errcheck
 
 			img, _, err := image.Decode(f)
 			if err != nil {
